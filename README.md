@@ -1,169 +1,61 @@
-# Ergo Blockchain Scanner
+# Stealth Address Scanner
 
-## Motivation
+* In this project we customize the ergo scanner project to find adn store ergo boxes related to a stealth address.
+*This project is based on Ergo blockchain scanner*
 
-Currently, there are two main ways to extract data from the Ergo blockchain 
-for applications, whether using node with custom scans (ergoutils, Ergo Auctions, SigmaUSD UI)  
-or explorer API (ErgoMixer). 
+you can read the scanner main document in [here](https://github.com/ergoplatform/scanner#ergo-blockchain-scanner).
 
-However, both node and explorer APIs has limitations, also, can have problems under high load.
+## What is Stealth Address
 
-Thus this scanner is providing a way to scan and extract boxes and corresponding 
-transactions block-by-block, with forks handling, database storage, configurable 
-database schema and blockchain scanning rules.
+Acoding to Kushti: 
+> Another solution for improving privacy is using stealth addresses. A stealth address preserves recipient privacy without per-transaction interaction needed (so receiver published an address e.g. on its website, and then sender can obtain some unique one-time address from it). This could be useful for privacy-preserving commerce, private donations and crowdfunding campaigns etc.
 
-## Docker Quick Start
-For using docker in first step you should build image for this clone project and following commands:
-```shell script
-cd scanner
-sudo docker build -t scanner:latest .
+In other words, stealth adddress used when you want to hide your extact amount of entrance. you can pass a public key to people and they compile a stealth contract and send some Ergs to the contract address. On the other hand the reciever can prove the contract and collect the Ergs.
+
+* If you whant to know more about the stealth address may be [this post](https://www.ergoforum.org/t/stealth-address-contract/255) be helpfull
+
+We customize the stealth contract like this
+ ```scala
+  val stealthScript: String = {
+    s"""{
+       |  val gr = decodePoint(fromBase64("GR"))
+       |  val gy = decodePoint(fromBase64("GY"))
+       |  val ur = decodePoint(fromBase64("UR"))
+       |  val uy = decodePoint(fromBase64("UY"))
+       |  proveDHTuple(gr,gy,ur,uy)
+       |}
+       |""".stripMargin
 ```
-After build image, you can run scanner with following command:
-```shell script
-sudo docker run -d \
-    -p 127.0.0.1:9000:9000 \
-    -v /path/on/host/to/scanner/database:/home/ergo/database \
-    scanner:latest
-``` 
-Also for set custom configuration, use the below command:
-```shell script
-sudo docker run -d \
-    -p 127.0.0.1:9000:9000 \
-    -v /path/on/host/to/scanner/database:/home/ergo/database \
-    -v /path/on/host/system/to/application.conf:/home/ergo/application.conf
-    scanner:latest
-``` 
 
-Both commands also would store database of scanner in `/path/on/host/to/scanner/database` on host system, and open ports `9000` (REST API) locally on host system. The `/path/on/host/to/scanner/database` directory must has `777` permissions or has owner/group numeric id equal to `9052` to be writable by container, as `ergo` user inside Docker image.
+As you can see we put the variables in the contract unlike the introduced methods. This decision brings us to some benefits and some costs.
+    *  As a benefit, we can use the address of compiled contract in the wallet and do the payment very easily.
+    *  As a cost, the contract address is no longer fixed and every time will be changed and it makes some problems for reciever to find the boxes.
+
+We do some experiments and study and find a patern base on ergo tree of a stealth address box to scan them on the ergo network. So we costomize the ergo scanner project to find stealth boxes and store them in the database. Also develope some api to simplify the user's work.
+
+This project has a simple UI to generate an new stealth payment address base on the given public key (AKA. stealth address)
+the stealth address contains two parts:
+~~~
+stealth:pk(in base58 format)
+~~~
+the prefix part helps up to use this feature in the wallets easily and makes a standard to use every where.
+
+In the UI part after you enter the stealth address you can get the stealth payment address and a QRCode. also by click the address you can copy it to the clipboard.
+
+![scanner ui](scanner-ui.jpg)
 
 
-## REST API
 
-The REST API to the scanner is described below.
 
-## Get status of Scanner
 
-### Request
 
-`GET /info`
 
-    curl -i -H 'Accept: application/json' http://localhost:9000/info
 
-### Response
 
-    HTTP/1.1 200 OK
-    Date: Thu, 24 Feb 2011 12:36:30 GMT
-    Content-Type: application/json
-    Content-Length: 62
 
-    {
-        "lastScannedHeight" : 554437,
-        "networkHeight" : 609429
-    }
 
-## Register a new Scan
 
-### Request
 
-`POST /scan/register`
 
-    curl -X POST 'localhost:9000/scan/register' -H 'Content-Type: application/json' -i --data-raw '{
-        "scanName": "ControlBox NFT",
-        "trackingRule": {
-            "predicate": "containsAsset",
-            "assetId": "72c3fbce3243d491d81eb564cdab1662b1f8d4c7e312b88870cec79b7cfd4321"
-        }
-    }'
 
-### Response
 
-    HTTP/1.1 200 OK
-    Date: Thu, 24 Feb 2011 12:36:30 GMT
-    Content-Type: application/json
-    Content-Length: 19
-
-    {
-        "scanId" : 1
-    }
-
-## Deregister a Scan
-
-### Request
-`POST /scan/deregister`
-
-    curl -X POST 'localhost:9000/scan/deregister' -H 'Content-Type: application/json' -i -d '{
-        "scanId": 1
-    }'
-
-### Response
-
-    HTTP/1.1 200 OK
-    Date: Thu, 24 Feb 2011 12:36:30 GMT
-    Content-Type: application/json
-    Content-Length: 19
-
-    {
-        "scanId" : 1
-    }
-
-## Get list of Scans
-
-### Request
-
-`GET /scan/listAll`
-
-    curl -i -H 'Accept: application/json' http://localhost:9000/scan/listAll
-
-### Response
-
-    HTTP/1.1 200 OK
-    Date: Thu, 24 Feb 2011 12:36:30 GMT
-    Content-Type: application/json
-    Content-Length: 229
-
-    [
-        {
-            "scanId" : 1,
-            "scanName" : "ControlBox NFT",
-            "trackingRule" : {
-            "predicate" : "containsAsset",
-            "assetId" : "72c3fbce3243d491d81eb564cdab1662b1f8d4c7e312b88870cec79b7cfd4321"
-            }
-        }
-    ]
-
-## Get list of unspent Boxes of scanId
-
-### Request
-
-`GET /scan/unspentBoxes/:scanId?minConfirmations=Int&minInclusionHeight=Int`
-
-    curl -i -H 'Accept: application/json' http://localhost:9000/scan/unspentBoxes/1?minConfirmations=1000&minInclusionHeight=500000
-
-### Response
-
-    HTTP/1.1 200 OK
-    Date: Thu, 24 Feb 2011 12:36:30 GMT
-    Content-Type: application/json
-    Content-Length: 589
-
-    [
-        {
-            "boxId" : "8bce771e080fbd054a70ec387106d4f6d9eeb4d9cd4b47e1014bda76619f8631",
-            "value" : 100000000,
-            "ergoTree" : "10010100d17300",
-            "assets" : [
-            {
-                "tokenId" : "72c3fbce3243d491d81eb564cdab1662b1f8d4c7e312b88870cec79b7cfd4321",
-                "amount" : 1
-            }
-            ],
-            "creationHeight" : 553058,
-            "additionalRegisters" : {
-            "R4" : "058084af5f",
-            "R5" : "08cd0327e65711a59378c59359c3e1d0f7abe906479eccb76094e50fe79d743ccc15e6"
-            },
-            "transactionId" : "48b5858414bd3950b66036b2fed9ad4d2f3e8033d78056aab0affffbf0812ae6",
-            "index" : 0
-        }
-    ]
