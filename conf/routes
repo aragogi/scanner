@@ -1,10 +1,10 @@
-GET         /                               controllers.Controller.home
-GET         /info                           controllers.Controller.scanInfo
+GET         /                         controllers.Controller.home
+GET         /info                     controllers.Controller.scanInfo
+GET         /scan/unspentBoxes        controllers.Controller.listUBoxes(minConfirmations: Int ?= 0, minInclusionHeight: Int ?= 0)
 
-POST        /scan/register                  controllers.Controller.scanRegister
-POST        /scan/deregister                controllers.Controller.scanDeregister
-GET         /scan/listAll                   controllers.Controller.listAllScans
-GET         /scan/unspentBoxes/:scanId      controllers.Controller.listUBoxes(scanId: Int, minConfirmations: Int ?= 0, minInclusionHeight: Int ?= 0)
+POST        /generateAddress          controllers.Controller.generateStealthAddress
+POST        /spendable                controllers.Controller.isSpendable
 
-GET         /assets/*file                   controllers.Assets.versioned(path="/public", file: Asset)
+
+GET         /assets/*file             controllers.Assets.versioned(path="/public", file: Asset)
 

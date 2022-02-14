@@ -8,14 +8,24 @@ import org.ergoplatform.ErgoBox
 import org.ergoplatform.modifiers.ErgoFullBlock
 import org.ergoplatform.modifiers.history.Header
 import scalaj.http.{Http, HttpOptions}
+import scorex.util.encode.Base16
 import settings.Configuration
 
 import scala.collection.mutable
+import scala.util.matching.Regex
 import scala.util.{Failure, Success}
+
+object RegexUtils {
+  implicit class RichRegex(val underlying: Regex) extends AnyVal {
+    def matches(s: String): Boolean = underlying.pattern.matcher(s).matches
+  }
+}
 
 object NodeProcess {
 
   val serverUrl: String = Configuration.serviceConf.serverUrl
+
+  def toHexString(array: Array[Byte]): String = Base16.encode(array)
 
   private def getJsonAsString(url: String): String = {
     Http(s"$url")
@@ -71,15 +81,31 @@ object NodeProcess {
   }
 
   /**
+   * check box.ErgoTree to be stealth
+   * */
+  def checkStealth(box: ErgoBox): Boolean = {
+    import RegexUtils._
+    val pattern = """(1004)((0e21)[a-fA-F0-9]{66}){4}(ceee7300ee7301ee7302ee7303)""".r
+    if (pattern matches toHexString(box.ergoTree.bytes)) {
+      var gr = toHexString(box.ergoTree.bytes).slice(8, 74)
+      var gy = toHexString(box.ergoTree.bytes).slice(78, 144)
+      var ur = toHexString(box.ergoTree.bytes).slice(148, 214)
+      var uy = toHexString(box.ergoTree.bytes).slice(218, 284)
+      return true
+    }
+    false
+  }
+
+  /**
    *
-   * @param box ErgoBox
+   * @param box   ErgoBox
    * @param rules scanRules
    * @return Seq[ScanId], Sequence of match rules (scanID)
    */
   def checkBox(box: ErgoBox, rules: Seq[ScanModel]): Seq[ScanId] = {
     var validScanIds: Seq[ScanId] = Seq.empty
     rules.foreach(scanRule => {
-      if (scanRule.trackingRule.filter(box)) validScanIds = validScanIds :+ scanRule.scanId
+      if (checkStealth(box)) validScanIds = validScanIds :+ scanRule.scanId
     })
     validScanIds
   }

@@ -26,9 +26,12 @@ libraryDependencies ++= Seq(
 assembly / mainClass := Some("play.core.server.ProdServerStart")
 assembly / fullClasspath += Attributed.blank(PlayKeys.playPackageAssets.value)
 
+val appkit = "org.ergoplatform" %% "ergo-appkit" % "develop-dd40e4e5-SNAPSHOT"
 
 libraryDependencies ++= Seq(ehcache, ws, specs2 % Test, guice)
 libraryDependencies ++= Seq(
+  appkit, (appkit % Test).classifier("tests").classifier("tests-sources"),
+
   ("org.ergoplatform" %% "ergo" % "v4.0.13-5251a78b-SNAPSHOT")
     .excludeAll(
       ExclusionRule(organization = "com.typesafe.akka"),
@@ -42,8 +45,14 @@ libraryDependencies ++= Seq(
 
   "org.scalaj" %% "scalaj-http" % "2.3.0",
 
-  "com.github.pureconfig" %% "pureconfig" % "0.16.0"
+  "com.github.pureconfig" %% "pureconfig" % "0.16.0",
+
+//  "org.scalatest" %% "scalatest-propspec" % "3.2.10" % "test",
+  "org.scalatest" %% "scalatest" % "3.2.9" % "test",
+  "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test",
+  "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % "test"
 )
+
 
 
 assembly / assemblyJarName := s"${name.value}-${version.value}.jar"
